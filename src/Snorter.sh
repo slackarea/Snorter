@@ -18,21 +18,34 @@ BOLD='\033[1m'
 function update_upgrade() {
 
 	echo -ne "\n\t${CYAN}[i] INFO:${NOCOLOR} Updating and Upgrading repositories...\n\n"
-	sudo apt-get update && sudo apt-get upgrade -y --force-yes
+	sudo apt-get update && sudo apt-get upgrade -y
 
 }
 
 function snort_install() {
 
 	echo -ne "\n\t${CYAN}[i] INFO:${NOCOLOR} Installing dependencies.\n\n"
-	sudo apt-get install -y --force-yes build-essential libpcap-dev libpcre3-dev libdumbnet-dev bison flex zlib1g-dev git locate vim
+	sudo apt-get install -y build-essential libpcap-dev libpcre3-dev libdumbnet-dev bison flex zlib1g-dev liblzma-dev ethtool git locate vim-nox
+	sudo apt-get install -y libluajit-5.1-dev pkg-config openssl libssl-dev
+	
+	echo -ne "\n\t${YELLOW}[!] INFO:${NOCOLOR} Now it's time to edit the ${BOLD}NETWORK INTERFACE${NOCOLOR} configuration file.\n\n"
+	echo -ne "\n\t${CYAN}[i] INFO:${NOCOLOR} Add ${BOLD}post-up ethtool -K eth0 gro off${NOCOLOR} and ${BOLD}post-up ethtool -K eth0 lro off${NOCOLOR} after your ethernet interface"
+	echo -ne "\n\t${YELLOW}[!] WARNING:${NOCOLOR} Press ${BOLD}ENTER${NOCOLOR} to continue. "
+	read -n 1 -s
+	sudo vim /etc/network/interfaces
 
 	#Downloading DAQ and SNORT
 	cd $HOME && mkdir snort_src && cd snort_src
+	wget --no-check-certificate -P $HOME/snort_src https://snort.org/$OAID -O snort-openappid.tar.gz
 	echo -ne "\n\t${CYAN}[i] INFO:${NOCOLOR} Downloading ${BOLD}$DAQ${NOCOLOR}.\n\n"
 	wget --no-check-certificate -P $HOME/snort_src https://snort.org/downloads/snort/$DAQ.tar.gz
 	echo -ne "\n\t${CYAN}[i] INFO:${NOCOLOR} Downloading ${BOLD}$SNORT${NOCOLOR}.\n\n"
 	wget --no-check-certificate -P $HOME/snort_src https://snort.org/downloads/snort/$SNORT.tar.gz
+
+	tar -xvzf snort-openappid.tar.gz
+	sudo mkdir -pv /etc/snort/rules/
+	sudo cp -r ~/snort_src/odp/ /etc/snort/rules/
+	sudo mkdir /usr/local/lib/thirdparty
 
 	#Installing DAQ
 	cd $HOME/snort_src/
@@ -40,7 +53,7 @@ function snort_install() {
 	tar xvfz $DAQ.tar.gz
 	mv $HOME/snort_src/daq-*/ $HOME/snort_src/daq
 	cd $HOME/snort_src/daq
-	./configure && make && sudo make install
+	./configure && make || exit 1 && sudo make install
 	echo -ne "\n\t${GREEN}[+] INFO:${NOCOLOR} ${BOLD}$DAQ${NOCOLOR} installed successfully.\n\n"
 
 	#Installing SNORT
@@ -50,7 +63,7 @@ function snort_install() {
 	rm -r *.tar.gz > /dev/null 2>&1
 	mv snort-*/ snort
 	cd snort
-	./configure --enable-sourcefire && make && sudo make install
+	./configure --enable-sourcefire && make || exit 1 && sudo make install
 	echo -ne "\n\t${GREEN}[+] INFO:${NOCOLOR} ${BOLD}$SNORT${NOCOLOR} installed successfully.\n\n"
 	cd ..
 
@@ -186,14 +199,14 @@ function barnyard2_install() {
 	echo -ne "\n\t${YELLOW}[!] WARNING:${NOCOLOR} Press ${BOLD}ENTER${NOCOLOR} to continue. "
 	read -n 1 -s
 
-	sudo apt-get install -y --force-yes mysql-server libmysqlclient-dev mysql-client autoconf libtool libdnet checkinstall yagiuda libdnet-dev locate
+	sudo apt-get install -y mariadb-server mariadb-client llibmariadb-dev-compat libmariadb-dev autoconf libtool libdnet checkinstall yagiuda libdnet-dev locate
 
 	cd $HOME/snort_src
 	echo -ne "\n\t${CYAN}[i] INFO:${NOCOLOR} Downloading ${BOLD}BARNYARD2${NOCOLOR}.\n\n"
 	git clone https://github.com/firnsy/barnyard2.git && cd $HOME/snort_src/barnyard2
 	autoreconf -fvi -I ./m4
 
-	ln -s /usr/include/dumbnet.h dnet.h
+	ln -s /usr/include/dumbnet.h /usr/include/dnet.h
 
 	echo -ne "\n\t${CYAN}[i] INFO:${NOCOLOR} Installing ${BOLD}BARNYARD2${NOCOLOR}2.\n\n"
 
@@ -205,7 +218,7 @@ function barnyard2_install() {
 		./configure --with-mysql --with-mysql-libraries=/usr/lib/arm-linux-gnueabihf
 	fi
 
-	make
+	make || exit 1
 	sudo make install
 
 	echo -ne "\n\t${GREEN}[+] INFO:${NOCOLOR} ${COLOR}BARNYARD2${NOCOLOR} installed successfully.\n\n"
@@ -597,8 +610,9 @@ fi
 if [ "$(echo ${#OINKCODE})" -eq 40 ]; then
 
 	MACHINE=$(echo $(uname -m))
-	SNORT=$(echo $(curl -s -k https://www.snort.org | grep "wget" | grep -oP "snort\-\d.\d\.\d+(\.\d)?"))
-	DAQ=$(echo $(curl -s -k https://www.snort.org | grep "wget" | grep -oP "daq\-\d\.\d\.\d"))
+	SNORT=$(echo $(curl -s -k https://snort.org | grep "wget" | grep -oP "snort\-\d.\d\.\d+(\.\d)?"))
+	DAQ=$(echo $(curl -s -k https://snort.org | grep "wget" | grep -oP "daq\-\d\.\d\.\d"))
+	OAID=$(echo $(curl -s -k https://snort.org/downloads | grep "snort-openappid.tar.gz" | grep -oP "\/downloads\/openappid/\d\d\d\d\d+(\.\d)?"))
 
 	echo -ne "\n\t\t${GREEN}[+] OINKCODE:${NOCOLOR} ${OINKCODE}"
 	echo -ne "\n\t\t${GREEN}[+] INTERFACE:${NOCOLOR} ${INTERFACE}"
