@@ -275,7 +275,7 @@ function pulledpork_ask() {
 function pulledpork_install() {
 
 	echo -ne "\n\t${CYAN}[i] INFO:${NOCOLOR} Installing dependencies.\n\n"
-	sudo apt-get install -y --force-yes libcrypt-ssleay-perl liblwp-useragent-determined-perl
+	sudo apt-get install -y libcrypt-ssleay-perl liblwp-useragent-determined-perl
 
 	cd $HOME/snort_src
 
